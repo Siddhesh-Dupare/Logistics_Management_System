@@ -1,6 +1,9 @@
 import tkinter as tk
 from tkinter import messagebox, ttk
 
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 import utility as util
 import mysql
 from mysql.connector import errorcode
@@ -105,7 +108,7 @@ class Main(tk.Frame):
         util.label(self, "Username", 14, "", util.white_font_color, util.secondary_color, 0.3, 0.26)
         username_frame = util.frame(self, util.secondary_color, 1, 0.31, 0.3, -10, 5, 400, 50)
         util.image(username_frame, "icons/email-icon.png", util.secondary_color, 0, 0, 5, 10, 24, 24)
-        username_entry = util.entry(username_frame, "", 14, util.secondary_color, util.white_font_color, "normal", 0, 0, 0,
+        username_entry, username_entry_var = util.entry(username_frame, "", 14, util.secondary_color, util.white_font_color, "normal", 0, 0, 0,
                                     40, 8,
                                     350, 30)
         username_label, username_label_var = util.label(self, "", 10, "", "#e42510", util.secondary_color, 0.3, 0.378)
@@ -113,7 +116,7 @@ class Main(tk.Frame):
         util.label(self, "Password", 14, "", util.white_font_color, util.secondary_color, 0.3, 0.41)
         password_frame = util.frame(self, util.secondary_color, 1, 0.31, 0.45, -10, 5, 400, 50)
         util.image(password_frame, "icons/key-icon.png", util.secondary_color, 0, 0, 7, 10, 24, 24)
-        password_entry = util.entry(password_frame, "", 14, util.secondary_color, util.white_font_color, "normal", 0, 0, 0,
+        password_entry, password_entry_var = util.entry(password_frame, "", 14, util.secondary_color, util.white_font_color, "normal", 0, 0, 0,
                                     40, 8,
                                     350, 30)
         eye_icon = util.image(password_frame, "icons/eye-icon.png", util.secondary_color, 0.9, 0, 7, 5, 24, 24)
@@ -125,8 +128,8 @@ class Main(tk.Frame):
             username_placeholder = "Username"
             password_placeholder = "Password"
 
-            username = username_entry.get()
-            password = password_entry.get()
+            username = username_entry_var.get()
+            password = password_entry_var.get()
 
             if (not username or password == username_placeholder) \
                     and (not password or password == password_placeholder):
@@ -230,6 +233,7 @@ class Dashboard(tk.Frame):
 
         self.display_summary_frames()
         self.display_active_quotes()
+        self.display_graph()
 
     def display_summary_frames(self):
         def create_frames(frame_text, values, x, y):
@@ -251,7 +255,10 @@ class Dashboard(tk.Frame):
     def display_active_quotes(self):
         util.destroy_frame(self.scrollbar_window)
 
-        query = "SELECT quotation.client_name, invoice.status, orders.delivery_status FROM ((quotation INNER JOIN invoice ON quotation.quotation_id = invoice.user_id) INNER JOIN orders ON quotation.quotation_id = orders.user_id)"
+        query = """SELECT quotation.client_name, invoice.status, orders.delivery_status
+                FROM quotation
+                LEFT JOIN invoice ON quotation.quotation_id = invoice.user_id
+                LEFT JOIN orders ON quotation.quotation_id = orders.user_id"""
         self.cursor.execute(query)
         results = self.cursor.fetchall()
 
@@ -294,6 +301,44 @@ class Dashboard(tk.Frame):
                 util.canvas_text(self.main, frame_canvas, 20, 12, result[0], util.white_font_color, 13, "", True)
                 util.canvas_text(self.main, frame_canvas, 200, 12, result[1], util.white_font_color, 13, "", True)
                 util.canvas_text(self.main, frame_canvas, 350, 12, result[2], util.white_font_color, 13, "", True)
+        else:
+            util.label(self.scrollbar_window, "No Active Quotations", 15, "bold", util.white_font_color,
+                       util.primary_color, 0.3, 0.4)
+
+
+    def display_graph(self):
+        graph_frame = util.frame(self.main, util.primary_color, 0, 0.03, 0.3, 0, 0, 600, 550)
+        orders_query = "SELECT departure_date FROM orders"
+        # self.cursor.execute(orders_query)
+        # result = self.cursor.fetchall()
+        #
+        # date_tuple = result[0]
+        # day = date_tuple[0].split('/')[0]
+        #
+        # figure = Figure(figsize=(5, 4), dpi=100)
+        #
+        # axis = figure.add_subplot(111)
+        #
+        # x_values = [1, 1, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        # y_values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        #
+        # axis.plot(x_values, y_values, marker='o', label='line 1')
+        # axis.plot(x_values, y_values[::-1], marker='o', label='line 2')
+        #
+        # axis.set_xticks(x_values)
+        # months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        # axis.set_xticklabels(months)
+        #
+        # axis.set_title("Performance Chart Year - 2024", loc='left')
+        # axis.set_ylabel('Total Numbers')
+        # axis.set_xlabel('Months')
+        # axis.grid(axis='y')
+        # axis.legend()
+        #
+        # canvas = FigureCanvasTkAgg(figure, master=graph_frame)
+        # canvas.draw()
+        # canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+
 
 
 class Quotation(tk.Frame):
@@ -349,10 +394,14 @@ class Quotation(tk.Frame):
 
         def create_quotation():
             top_level = tk.Toplevel()
-            top_level.title("Request Quotation")
+            top_level.title("Create Quotation")
             top_level.geometry("500x400")
             top_level.config(bg=util.secondary_color)
             util.destroy_frame(top_level)
+            top_level.transient(self.main)
+            top_level.grab_set()
+            top_level.attributes('-topmost', True)
+            top_level.focus_force()
 
             util.label(top_level, "Client Name", 13, "bold", util.white_font_color, util.secondary_color, 0.17, 0.1)
             client_name, client_name_var, client_name_frame = util.frame_entry(top_level, "", 0.4, 0.1, 0, 0, 220, 30)
@@ -370,21 +419,30 @@ class Quotation(tk.Frame):
             contact_no, contact_no_var, contact_no_frame = util.frame_entry(top_level, "", 0.4, 0.5, 0, 0, 220, 30)
 
             def send_quotation_button():
-                search_query = "SELECT id FROM quotation"
-                self.cursor.execute(search_query)
-                result = self.cursor.fetchall()
+                try:
+                    if not all([client_name_var.get(), company_name_var.get(), company_website_var.get(), email_var.get(), contact_no_var.get()]):
+                        messagebox.showwarning("Application", "Please fill in all fields.", parent=top_level)
+                        return
+                    if len(contact_no_var.get()) != 10 or not contact_no_var.get().isdigit():
+                        messagebox.showwarning("Application", "Please enter a valid 10-digit phone number", parent=top_level)
+                        return
+                    search_query = "SELECT id FROM quotation"
+                    self.cursor.execute(search_query)
+                    result = self.cursor.fetchall()
 
-                query = "INSERT INTO quotation (quotation_id, user_id, client_name, company_name, company_website, client_email," \
-                        "contact_no, status, created_on) VALUES (%s, %s, %s, %s, %s, %s, %s, 'ACTIVE', %s)"
-                values = (f"ID-{util.generate_id(result)}", f"{util.generate_id(result)}", client_name_var.get(), company_name_var.get(),
-                          company_website_var.get(), email_var.get(), contact_no_var.get(), util.get_current_date())
-                self.cursor.execute(query, values)
-                self.connection.commit()
+                    query = "INSERT INTO quotation (quotation_id, user_id, client_name, company_name, company_website, client_email," \
+                            "contact_no, status, created_on) VALUES (%s, %s, %s, %s, %s, %s, %s, 'ACTIVE', %s)"
+                    values = (f"ID-{util.generate_id(result)}", f"{util.generate_id(result)}", client_name_var.get(), company_name_var.get(),
+                              company_website_var.get(), email_var.get(), contact_no_var.get(), util.get_current_date())
+                    self.cursor.execute(query, values)
+                    self.connection.commit()
 
-                result_button = messagebox.showinfo("Application", "Quotation created!")
-                if result_button == 'ok':
-                    top_level.destroy()
-                    self.display_quotation()
+                    result_button = messagebox.showinfo("Application", "Quotation created!", parent=top_level)
+                    if result_button == 'ok':
+                        top_level.destroy()
+                        self.display_quotation()
+                except Exception as e:
+                    messagebox.showerror("Application Error: ", str(e), parent=top_level)
 
             util.button(top_level, 0.25, 0.8, 0, 0, 100, 35, "Send", 15, "bold", util.secondary_color, util.edit_color,
                         send_quotation_button, "")
@@ -403,20 +461,31 @@ class Quotation(tk.Frame):
             top_level.title("Create Booking")
             top_level.geometry("500x400")
             top_level.config(bg=util.secondary_color)
+            top_level.transient(self.main)
+            top_level.grab_set()
+            top_level.attributes('-topmost', True)
+            top_level.focus_force()
 
             util.label(top_level, "Quotation Id", 12, "bold", util.white_font_color, util.secondary_color, 0.07, 0.03)
             request_id, request_id_var, request_id_frame = util.frame_entry(top_level, "", 0.33, 0.03, 0, 0, 200, 30)
 
             def search_quotation_id():
+                if not request_id_var.get():
+                    messagebox.showwarning("Error", "Please enter a Request ID.", parent=top_level)
+                    return
+
                 search_query = f"SELECT * FROM quotation WHERE quotation_id = '{request_id_var.get()}'"
                 self.cursor.execute(search_query)
                 result = self.cursor.fetchone()
 
-                client_name_var.set(result[3])
-                company_name_var.set(result[4])
-                company_website_var.set(result[5])
-                email_var.set(result[6])
-                contact_no_var.set(result[7])
+                if result:
+                    client_name_var.set(result[3])
+                    company_name_var.set(result[4])
+                    company_website_var.set(result[5])
+                    email_var.set(result[6])
+                    contact_no_var.set(result[7])
+                else:
+                    messagebox.showwarning("Error", "No record found for the provided Request ID.", parent=top_level)
 
             util.button(top_level, 0.77, 0.03, 0, 0, 80, 30, "Search", 12, "bold", util.white_font_color,
                         util.primary_color, search_quotation_id, "")
@@ -446,7 +515,7 @@ class Quotation(tk.Frame):
                 values = (client_name_var.get(), company_name_var.get(), company_website_var.get(), email_var.get(), contact_no_var.get(), request_id_var.get())
                 self.cursor.execute(update_query, values)
                 self.connection.commit()
-                result = messagebox.showinfo("Application", "Quotation updated")
+                result = messagebox.showinfo("Application", "Quotation updated", parent=top_level)
                 if result == 'ok':
                     top_level.destroy()
                     self.display_quotation()
@@ -605,16 +674,27 @@ class Orders(tk.Frame):
             top_level.title("Create Booking")
             top_level.geometry("900x600")
             top_level.config(bg=util.secondary_color)
+            top_level.transient(self.main)
+            top_level.grab_set()
+            top_level.attributes('-topmost', True)
+            top_level.focus_force()
 
             util.label(top_level, "Quotation ID", 12, "bold", util.white_font_color, util.secondary_color, 0.03, 0.035)
             quotation_id, quotation_id_var, quotation_id_frame = util.frame_entry(top_level, "", 0.33, 0.03, 0, 0, 200, 30)
 
             def search_quotation_id():
+                if not quotation_id_var.get():
+                    messagebox.showerror("Error", "Please enter a Request ID.", parent=top_level)
+                    return
+
                 search_query = f"SELECT quotation.client_name FROM quotation WHERE quotation_id = '{quotation_id_var.get()}'"
                 self.cursor.execute(search_query)
                 result = self.cursor.fetchone()
 
-                client_name_var.set(result[0])
+                if result:
+                    client_name_var.set(result[0])
+                else:
+                    messagebox.showwarning("Error", "No record found for the provided Request ID.", parent=top_level)
 
             util.button(top_level, 0.77, 0.03, 0, 0, 80, 30, "Search", 12, "bold", util.white_font_color,
                         util.primary_color, search_quotation_id, "")
@@ -649,14 +729,21 @@ class Orders(tk.Frame):
             specificaiton, specificaiton_var, specificaiton_frame = util.frame_entry(top_level, "", 0.7, 0.46, 0, 0, 200, 30)
 
             def create_order_button():
-                insert_query = "INSERT INTO orders (order_id, user_id, order_status, product_category, departure_date, arrival_date, departure_location, arrival_location, specification) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
-                values = (f"OR-{util.generate_id('9893')}", quotation_id_var.get(), 'ACTIVE', product_description_var.get(), departure_date.get(), arrival_date.get(), departure_location_var.get(), arrival_location_var.get(), specificaiton_var.get())
-                self.cursor.execute(insert_query, values)
-                self.connection.commit()
-                result = messagebox.showinfo("Application", "Order created successfully")
-                if result == 'ok':
-                    top_level.destroy()
-                    self.display_orders()
+                try:
+                    if not all([client_name_var.get(), product_description_var.get(), departure_date.get(), arrival_date.get(), departure_location_var.get(), arrival_location_var.get(), specificaiton_var.get()]):
+                        messagebox.showwarning("Application", "Please fill in all fields.", parent=top_level)
+                        return
+
+                    insert_query = "INSERT INTO orders (order_id, user_id, order_status, product_category, departure_date, arrival_date, departure_location, arrival_location, specification) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+                    values = (f"OR-{util.generate_id('9893')}", quotation_id_var.get(), 'ACTIVE', product_description_var.get(), departure_date.get(), arrival_date.get(), departure_location_var.get(), arrival_location_var.get(), specificaiton_var.get())
+                    self.cursor.execute(insert_query, values)
+                    self.connection.commit()
+                    result = messagebox.showinfo("Application", "Order created successfully", parent=top_level)
+                    if result == 'ok':
+                        top_level.destroy()
+                        self.display_orders()
+                except Exception as e:
+                    messagebox.showerror("Application Error", str(e), parent=top_level)
 
             util.button(top_level, 0.25, 0.8, 0, 0, 100, 35, "Create", 15, "bold", util.secondary_color,
                         util.edit_color,
@@ -680,22 +767,32 @@ class Orders(tk.Frame):
             top_level.title("Update Order")
             top_level.geometry("900x600")
             top_level.config(bg=util.secondary_color)
+            top_level.transient(self.main)
+            top_level.grab_set()
+            top_level.attributes('-topmost', True)
+            top_level.focus_force()
 
             util.label(top_level, "Quotation ID", 12, "bold", util.white_font_color, util.secondary_color, 0.03, 0.035)
-            order_id, order_id_var, order_id_frame = util.frame_entry(top_level, "", 0.33, 0.03, 0, 0, 200,
-                                                                                  30)
+            order_id, order_id_var, order_id_frame = util.frame_entry(top_level, "", 0.33, 0.03, 0, 0, 200, 30)
 
             def search_order_id():
-                search_query = f"SELECT * FROM order WHERE order_id = '{order_id_var.get()}'"
+                if not order_id_var.get():
+                    messagebox.showerror("Error", "Please enter a Request ID.", parent=top_level)
+                    return
+
+                search_query = f"SELECT * FROM orders WHERE user_id = '{order_id_var.get()}'"
                 self.cursor.execute(search_query)
                 result = self.cursor.fetchone()
 
-                product_description_var.set(result[4])
-                departure_date.set(result[5])
-                arrival_date.set(result[6])
-                departure_location_var.set(result[7])
-                arrival_location_var.set(result[8])
-                specification_var.set(result[9])
+                if result:
+                    product_description_var.set(result[4])
+                    departure_date.set(result[5])
+                    arrival_date.set(result[6])
+                    departure_location_var.set(result[7])
+                    arrival_location_var.set(result[8])
+                    specification_var.set(result[9])
+                else:
+                    messagebox.showwarning("Error", "No record found for the provided Request ID.", parent=top_level)
 
             util.button(top_level, 0.77, 0.03, 0, 0, 80, 30, "Search", 12, "bold", util.white_font_color,
                         util.primary_color, search_order_id, "")
@@ -734,7 +831,7 @@ class Orders(tk.Frame):
                 update_query = "UPDATE orders SET product_category = %s, departure_date = %s, arrival_date = %s, departure_location = %s, arrival_location = %s, specification = %s, delivery_status = %s"
                 values = (product_description_var.get(), departure_date.get(), arrival_date.get(), departure_location_var.get(), arrival_location_var.get(), specification_var.get(), 'NOT DELIVERED')
                 self.cursor.execute(update_query, values)
-                result = messagebox.askquestion("Application", "Order updated successfully")
+                result = messagebox.askquestion("Application", "Order updated successfully", parent=top_level)
                 if result == 'ok':
                     top_level.destroy()
                     self.display_orders()
@@ -761,13 +858,20 @@ class Orders(tk.Frame):
     def display_orders(self):
         util.destroy_frame(self.scrollbar_window)
 
-        query = "SELECT orders.order_id, orders.order_status, orders.product_category, orders.departure_date, orders.arrival_date, orders.departure_location, orders.arrival_location, orders.specification, invoice.total_amount, invoice.payment_type, quotation.client_name FROM ((orders INNER JOIN invoice ON invoice.user_id = orders.user_id) INNER JOIN quotation ON quotation.quotation_id = orders.user_id)"
+        query = """SELECT orders.order_id, orders.order_status, orders.product_category, orders.departure_date, orders.arrival_date,
+                orders.departure_location, orders.arrival_location, orders.specification, invoice.total_amount, invoice.payment_type,
+                quotation.client_name, driver.vehicle_category, driver.vehicle_number
+                FROM orders
+                LEFT JOIN invoice ON invoice.user_id = orders.user_id
+                LEFT JOIN quotation ON quotation.quotation_id = orders.user_id
+                LEFT JOIN transport ON transport.user_id = orders.user_id
+                LEFT JOIN driver ON driver.driver_id = transport.driver_id"""
         self.cursor.execute(query)
         results = self.cursor.fetchall()
 
         if results:
             canvas = tk.Canvas(self.scrollbar_window, bg=util.primary_color, highlightthickness=0,
-                               scrollregion=(0, 0, 1700, 5000))
+                               scrollregion=(0, 0, 1375, 5000))
             canvas.pack(expand=True, fill='both')
 
             vertical_scrollbar = ttk.Scrollbar(self.scrollbar_window, orient='vertical', command=canvas.yview)
@@ -813,10 +917,8 @@ class Orders(tk.Frame):
                 util.canvas_text(self.main, frame_canvas, 920, 35, f"{result[7]}", util.white_font_color, 12,
                                  "bold", False)
                 util.canvas_text(self.main, frame_canvas, 920, 80, "Transport", util.faded_white, 11, "bold", False)
-                util.canvas_text(self.main, frame_canvas, 920, 100, "{result[8]}", util.white_font_color, 12, "bold",
+                util.canvas_text(self.main, frame_canvas, 920, 100, f"{result[11]}\n{result[12]}", util.white_font_color, 12, "bold",
                                  False)
-                util.canvas_text(self.main, frame_canvas, 920, 120, "Straight Engine", util.white_font_color, 12,
-                                 "bold", False)
 
                 util.canvas_text(self.main, frame_canvas, 1150, 12, f"{result[8]}", util.white_font_color, 15, "bold",
                                  False)
@@ -826,6 +928,9 @@ class Orders(tk.Frame):
                 util.canvas_text(self.main, frame_canvas, 1150, 100, "Client Name", util.faded_white, 11, "bold", False)
                 util.canvas_text(self.main, frame_canvas, 1150, 120, f"{result[10]}", util.white_font_color, 12,
                                  "bold", False)
+        else:
+            util.label(self.scrollbar_window, "No Orders", 20, "bold", util.white_font_color,
+                       util.primary_color, 0.43, 0.45)
 
 
 class Users(tk.Frame):
@@ -878,10 +983,12 @@ class Users(tk.Frame):
                    util.white_font_color, False)
 
         switch_frame = util.frame(self.main, util.secondary_color, 0, 0.03, 0.15, 0, 0, 600, 30)
+        button_frame = util.frame(self, util.secondary_color, 0, 0.65, 0.1, 0, 0, 445, 50)
         self.scrollbar_window = util.frame(self.main, util.primary_color, 1, 0.03, 0.2, 0, 0, 1090, 650)
 
         def users():
             util.destroy_frame(switch_frame)
+            util.destroy_frame(button_frame)
 
             util.button(switch_frame, 0, 0, 0, 0, 70, 25, "Users", 12, "bold", util.tertiary_color,
                         util.secondary_color, users, "")
@@ -903,6 +1010,10 @@ class Users(tk.Frame):
                 top_level.title("Create Booking")
                 top_level.geometry("900x600")
                 top_level.config(bg=util.secondary_color)
+                top_level.transient(self.main)
+                top_level.grab_set()
+                top_level.attributes('-topmost', True)
+                top_level.focus_force()
 
                 driver_details_frame = util.frame(top_level, util.tertiary_color, 1, 0.02, 0.03, 0, 0, 850, 30)
                 util.label(driver_details_frame, "Driver Details", 13, "bold", util.white_font_color,
@@ -917,24 +1028,18 @@ class Users(tk.Frame):
                 util.label(top_level, "Vehicle Model", 12, "bold", util.white_font_color, util.secondary_color, 0.03, 0.32)
                 vehicle_model, vehicle_model_var, vehicle_model_frame = util.frame_entry(top_level, "", 0.22, 0.32, 0, 0, 200, 30)
                 util.label(top_level, "Issue Date", 12, "bold", util.white_font_color, util.secondary_color, 0.5, 0.11)
-
                 date_label_var = util.open_calendar(top_level, 0.68, 0.11)
-
-                util.label(top_level, "Contact Number", 12, "bold", util.white_font_color, util.secondary_color, 0.5,
-                           0.18)
-                contact_no, contact_no_var, contact_no_frame = util.frame_entry(top_level, "", 0.68, 0.18, 0,
-                                                                                         0, 200, 30)
-                util.label(top_level, "Driver License", 12, "bold", util.white_font_color, util.secondary_color, 0.5,
-                           0.25)
-                driver_license, driver_license_var, driver_license_frame = util.frame_entry(top_level, "", 0.68, 0.25, 0,
-                                                                                         0, 200, 30)
+                util.label(top_level, "Contact Number", 12, "bold", util.white_font_color, util.secondary_color, 0.5, 0.18)
+                contact_no, contact_no_var, contact_no_frame = util.frame_entry(top_level, "", 0.68, 0.18, 0, 0, 200, 30)
+                util.label(top_level, "Driver License", 12, "bold", util.white_font_color, util.secondary_color, 0.5, 0.25)
+                driver_license, driver_license_var, driver_license_frame = util.frame_entry(top_level, "", 0.68, 0.25, 0, 0, 200, 30)
 
                 def create_driver_button():
                     insert_query = "INSERT INTO driver (driver_id, driver_name, vehicle_category, vehicle_number, vehicle_model, issue_date, contact_no, driver_license, status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
                     values = (f"DR-{util.generate_id('8983')}", driver_name_var.get(), vehicle_category_var.get(), vehicle_number_var.get(), vehicle_model_var.get(), date_label_var.get(), contact_no_var.get(), driver_license_var.get(), 'AVAILABLE')
                     self.cursor.execute(insert_query, values)
                     self.connection.commit()
-                    result = messagebox.showinfo("Application", "Driver created")
+                    result = messagebox.showinfo("Application", "Driver created", parent=top_level)
                     if result == 'ok':
                         self.display_driver()
 
@@ -959,6 +1064,10 @@ class Users(tk.Frame):
                 top_level.title("Create Booking")
                 top_level.geometry("900x600")
                 top_level.config(bg=util.secondary_color)
+                top_level.transient(self.main)
+                top_level.grab_set()
+                top_level.attributes('-topmost', True)
+                top_level.focus_force()
 
                 util.label(top_level, "Driver Id", 12, "bold", util.white_font_color, util.secondary_color, 0.07,
                            0.03)
@@ -966,17 +1075,24 @@ class Users(tk.Frame):
                                                                                 30)
 
                 def search_driver_id():
+                    if not driver_id_var.get():
+                        messagebox.showwarning("Error", "Please enter a Driver ID.", parent=top_level)
+                        return
+
                     search_query = f"SELECT * FROM driver WHERE driver_id = '{driver_id_var.get()}'"
                     self.cursor.execute(search_query)
                     result = self.cursor.fetchone()
 
-                    driver_name_var.set(result[2])
-                    vehicle_category_var.set(result[3])
-                    vehicle_number_var.set(result[4])
-                    vehicle_model_var.set(result[5])
-                    date_label_var.set(result[6])
-                    contact_no_var.set(result[7])
-                    driver_license_var.set(result[8])
+                    if result:
+                        driver_name_var.set(result[2])
+                        vehicle_category_var.set(result[3])
+                        vehicle_number_var.set(result[4])
+                        vehicle_model_var.set(result[5])
+                        date_label_var.set(result[6])
+                        contact_no_var.set(result[7])
+                        driver_license_var.set(result[8])
+                    else:
+                        messagebox.showwarning("Error", "No record found for the provided Driver ID.", parent=top_level)
 
                 util.button(top_level, 0.77, 0.03, 0, 0, 80, 30, "Search", 12, "bold", util.white_font_color,
                             util.primary_color, search_driver_id, "")
@@ -1014,14 +1130,25 @@ class Users(tk.Frame):
                 driver_license, driver_license_var, driver_license_frame = util.frame_entry(top_level, "", 0.68, 0.32, 0, 0, 200, 30)
 
                 def update_driver_button():
-                    update_query = "UPDATE driver SET driver_name = %s, vehicle_category = %s, vehicle_number = %s, vehicle_model = %s, issue_date = %s, contact_no = %s, driver_license = %s"
-                    values = (driver_name_var.get(), vehicle_category_var.get(), vehicle_number_var.get(), vehicle_model_var.get(), date_label_var.get(), contact_no_var.get(), driver_license_var.get())
-                    self.cursor.execute(update_query, values)
-                    self.connection.commit()
-                    result = messagebox.showinfo("Application", "Driver details updated")
-                    if result == 'ok':
-                        self.display_driver()
-                        top_level.destroy()
+                    try:
+                        if not all([driver_name_var.get(), vehicle_category_var.get(), vehicle_number_var.get(), vehicle_model_var.get(), date_label_var.get(), contact_no_var.get(), driver_license_var.get()]):
+                            messagebox.showwarning("Application", "Please fill in all fields.", parent=top_level)
+                            return
+
+                        if len(contact_no_var.get()) != 10 or not contact_no_var.get().isdigit():
+                            messagebox.showwarning("Application", "Please enter a valid 10-digit phone number", parent=top_level)
+                            return
+
+                        update_query = "UPDATE driver SET driver_name = %s, vehicle_category = %s, vehicle_number = %s, vehicle_model = %s, issue_date = %s, contact_no = %s, driver_license = %s"
+                        values = (driver_name_var.get(), vehicle_category_var.get(), vehicle_number_var.get(), vehicle_model_var.get(), date_label_var.get(), contact_no_var.get(), driver_license_var.get())
+                        self.cursor.execute(update_query, values)
+                        self.connection.commit()
+                        result = messagebox.showinfo("Application", "Driver details updated", parent=top_level)
+                        if result == 'ok':
+                            self.display_driver()
+                            top_level.destroy()
+                    except Exception as e:
+                        messagebox.showerror("Application Error", str(e), parent=top_level)
 
                 util.button(top_level, 0.25, 0.8, 0, 0, 100, 35, "Update", 15, "bold", util.secondary_color,
                             util.edit_color,
@@ -1036,9 +1163,9 @@ class Users(tk.Frame):
                 top_level.resizable(False, False)
                 top_level.mainloop()
 
-            util.button(self.main, 0.55, 0.1, 0, 0, 210, 50, "Update Driver", 13, "bold", util.tertiary_color,
+            util.button(button_frame, 0.1, 0, 0, 0, 210, 50, "Update Driver", 13, "bold", util.tertiary_color,
                         util.primary_color, update_driver, create_btn)
-            util.button(self.main, 0.77, 0.1, 0, 0, 180, 50, "Create Driver", 13, "bold", util.tertiary_color,
+            util.button(button_frame, 0.59, 0, 0, 0, 180, 50, "Create Driver", 13, "bold", util.tertiary_color,
                         util.primary_color, create_driver, create_btn)
 
             self.display_driver()
@@ -1101,6 +1228,9 @@ class Users(tk.Frame):
                 util.canvas_text(self.main, frame_canvas, 1000, 12, result[6], util.white_font_color, 13, "", True)
                 util.canvas_text(self.main, frame_canvas, 1300, 12, result[7], util.white_font_color, 13, "", True)
                 util.canvas_text(self.main, frame_canvas, 1500, 12, result[9], util.white_font_color, 13, "", True)
+        else:
+            util.label(self.scrollbar_window, "No Users", 20, "bold", util.white_font_color,
+                       util.primary_color, 0.43, 0.45)
 
     def display_driver(self):
         util.destroy_frame(self.scrollbar_window)
@@ -1183,6 +1313,9 @@ class Users(tk.Frame):
                                            20, 20)
                 util.button(frame_canvas, 0.94, 0.22, 12, 2, 20, 20, "", 12, "", util.primary_color, util.primary_color,
                             recycle_callback, recycle_button)
+        else:
+            util.label(self.scrollbar_window, "No Drivers", 20, "bold", util.white_font_color,
+                       util.primary_color, 0.43, 0.45)
 
 
 class Transport(tk.Frame):
@@ -1240,17 +1373,27 @@ class Transport(tk.Frame):
             top_level.geometry("900x600")
             top_level.config(bg=util.secondary_color)
             util.destroy_frame(top_level)
+            top_level.transient(self.main)
+            top_level.grab_set()
+            top_level.attributes('-topmost', True)
+            top_level.focus_force()
 
             util.label(top_level, "Quotation Id", 12, "bold", util.white_font_color, util.secondary_color, 0.07, 0.03)
-            quotation_id, quotation_id_var, quotation_id_frame = util.frame_entry(top_level, "", 0.33, 0.03, 0, 0, 200,
-                                                                                  30)
+            quotation_id, quotation_id_var, quotation_id_frame = util.frame_entry(top_level, "", 0.33, 0.03, 0, 0, 200, 30)
 
             def search_quotation_id():
+                if quotation_id_var.get():
+                    messagebox.showwarning("Error", "Please enter a Quotation ID.", parent=top_level)
+                    return
+
                 search_query = f"SELECT quotation.client_name FROM quotation WHERE quotation_id = '{quotation_id_var.get()}'"
                 self.cursor.execute(search_query)
                 result = self.cursor.fetchone()
 
-                client_name_var.set(result[0])
+                if result:
+                    client_name_var.set(result[0])
+                else:
+                    messagebox.showwarning("Error", "No record found for the provided Quotation ID.", parent=top_level)
 
             util.button(top_level, 0.77, 0.03, 0, 0, 80, 30, "Search", 12, "bold", util.white_font_color,
                         util.primary_color, search_quotation_id, "")
@@ -1271,17 +1414,24 @@ class Transport(tk.Frame):
                                                                                   30)
 
             def search_driver_id():
+                if not driver_id_var.get():
+                    messagebox.showwarning("Error", "Please enter a Driver ID.", parent=top_level)
+                    return
+
                 search_query = f"SELECT * FROM driver WHERE driver_id = '{driver_id.get()}' AND status = 'AVAILABLE'"
                 self.cursor.execute(search_query)
                 result = self.cursor.fetchone()
 
-                driver_name_var.set(result[2])
-                category_var.set(result[3])
-                number_var.set(result[4])
-                model_var.set(result[5])
-                issue_date_var.set(result[6])
-                contact_var.set(result[7])
-                license_var.set(result[8])
+                if result:
+                    driver_name_var.set(result[2])
+                    category_var.set(result[3])
+                    number_var.set(result[4])
+                    model_var.set(result[5])
+                    issue_date_var.set(result[6])
+                    contact_var.set(result[7])
+                    license_var.set(result[8])
+                else:
+                    messagebox.showwarning("Error", "No record found for the provided Driver ID.", parent=top_level)
 
             util.button(top_level, 0.77, 0.32, 0, 0, 80, 30, "Search", 12, "bold", util.white_font_color,
                         util.primary_color, search_driver_id, "")
@@ -1314,14 +1464,25 @@ class Transport(tk.Frame):
                                                 util.secondary_color, 0.65, 0.54)
 
             def create_invoice_button():
-                insert_query = "INSERT INTO transport (user_id, driver_id) VALUES (%s, %s)"
-                values = (quotation_id_var.get(), driver_id_var.get())
-                self.cursor.execute(insert_query, values)
-                self.connection.commit()
-                result = messagebox.showinfo("Application", "Transport created successfully")
-                if result == 'ok':
-                    top_level.destroy()
-                    self.display_transport()
+                try:
+                    if not all([driver_name_var.get(), category_var.get(), number_var.get(), model_var.get(), issue_date_var.get(), contact_var.get(), license_var.get()]):
+                        messagebox.showwarning("Application", "Please fill in all fields.", parent=top_level)
+                        return
+
+                    if len(contact_var.get()) != 10 or not contact_var.get().isdigit():
+                        messagebox.showwarning("Application", "Please enter a valid 10-digit phone number.", parent=top_level)
+                        return
+
+                    insert_query = "INSERT INTO transport (user_id, driver_id) VALUES (%s, %s)"
+                    values = (quotation_id_var.get(), driver_id_var.get())
+                    self.cursor.execute(insert_query, values)
+                    self.connection.commit()
+                    result = messagebox.showinfo("Application", "Transport created successfully", parent=top_level)
+                    if result == 'ok':
+                        top_level.destroy()
+                        self.display_transport()
+                except Exception as e:
+                    messagebox.showerror("Application Error", str(e), parent=top_level)
 
             util.button(top_level, 0.25, 0.8, 0, 0, 100, 35, "Create", 15, "bold", util.secondary_color, util.edit_color,
                         create_invoice_button, "")
@@ -1345,17 +1506,27 @@ class Transport(tk.Frame):
             top_level.geometry("900x600")
             top_level.config(bg=util.secondary_color)
             util.destroy_frame(top_level)
+            top_level.transient(self.main)
+            top_level.grab_set()
+            top_level.attributes('-topmost', True)
+            top_level.focus_force()
 
             util.label(top_level, "Quotation Id", 12, "bold", util.white_font_color, util.secondary_color, 0.07, 0.03)
-            quotation_id, quotation_id_var, quotation_id_frame = util.frame_entry(top_level, "", 0.33, 0.03, 0, 0, 200,
-                                                                                  30)
+            quotation_id, quotation_id_var, quotation_id_frame = util.frame_entry(top_level, "", 0.33, 0.03, 0, 0, 200, 30)
 
             def search_quotation_id():
+                if quotation_id_var.get():
+                    messagebox.showwarning("Error", "Please enter a Request ID.", parent=top_level)
+                    return
+
                 search_query = f"SELECT quotation.client_name FROM quotation WHERE quotation_id = '{quotation_id_var.get()}'"
                 self.cursor.execute(search_query)
                 result = self.cursor.fetchone()
 
-                client_name_var.set(result[0])
+                if result:
+                    client_name_var.set(result[0])
+                else:
+                    messagebox.showwarning("Error", "No record found for the provided Request ID.", parent=top_level)
 
             util.button(top_level, 0.77, 0.03, 0, 0, 80, 30, "Search", 12, "bold", util.white_font_color,
                         util.primary_color, search_quotation_id, "")
@@ -1376,17 +1547,24 @@ class Transport(tk.Frame):
                                                                          30)
 
             def search_driver_id():
+                if not driver_id_var.get():
+                    messagebox.showwarning("Error", "Please enter a Request ID.", parent=top_level)
+                    return
+
                 search_query = f"SELECT * FROM driver WHERE driver_id = '{driver_id.get()}' AND status = 'AVAILABLE'"
                 self.cursor.execute(search_query)
                 result = self.cursor.fetchone()
 
-                driver_name_var.set(result[2])
-                category_var.set(result[3])
-                number_var.set(result[4])
-                model_var.set(result[5])
-                issue_date_var.set(result[6])
-                contact_var.set(result[7])
-                license_var.set(result[8])
+                if result:
+                    driver_name_var.set(result[2])
+                    category_var.set(result[3])
+                    number_var.set(result[4])
+                    model_var.set(result[5])
+                    issue_date_var.set(result[6])
+                    contact_var.set(result[7])
+                    license_var.set(result[8])
+                else:
+                    messagebox.showwarning("Error", "No record found for the provided Request ID.", parent=top_level)
 
             util.button(top_level, 0.77, 0.32, 0, 0, 80, 30, "Search", 12, "bold", util.white_font_color,
                         util.primary_color, search_driver_id, "")
@@ -1424,7 +1602,7 @@ class Transport(tk.Frame):
                 values = (quotation_id_var.get(), driver_id_var.get(), quotation_id_var.get(), driver_id_var.get())
                 self.cursor.execute(update_query, values)
                 self.connection.commit()
-                result = messagebox.showinfo("Application", "Transport updated successfully")
+                result = messagebox.showinfo("Application", "Transport updated successfully", parent=top_level)
                 if result == 'ok':
                     top_level.destroy()
                     self.display_transport()
@@ -1452,7 +1630,12 @@ class Transport(tk.Frame):
     def display_transport(self):
         util.destroy_frame(self.scrollbar_window)
 
-        query = "SELECT quotation.quotation_id, orders.order_status, driver.vehicle_category, driver.vehicle_number, driver.vehicle_model, driver.issue_date, driver.driver_name, driver.contact_no, driver.driver_license FROM (((transport INNER JOIN quotation ON transport.user_id = quotation.quotation_id) INNER JOIN driver ON transport.driver_id = driver.driver_id) INNER JOIN orders ON orders.user_id = transport.user_id)"
+        query = """SELECT quotation.quotation_id, orders.order_status, driver.vehicle_category, driver.vehicle_number,
+                driver.vehicle_model, driver.issue_date, driver.driver_name, driver.contact_no, driver.driver_license
+                FROM transport
+                LEFT JOIN quotation ON transport.user_id = quotation.quotation_id
+                LEFT JOIN driver ON transport.driver_id = driver.driver_id
+                LEFT JOIN orders ON orders.user_id = transport.user_id"""
         self.cursor.execute(query)
         results = self.cursor.fetchall()
 
@@ -1509,6 +1692,9 @@ class Transport(tk.Frame):
                 util.canvas_text(self.main, frame_canvas, 920, 100, "License", util.faded_white, 11, "bold", False)
                 util.canvas_text(self.main, frame_canvas, 920, 120, f"{result[8]}", util.white_font_color, 12, "bold",
                                  False)
+        else:
+            util.label(self.scrollbar_window, "No Transport", 20, "bold", util.white_font_color,
+                       util.primary_color, 0.43, 0.45)
 
 
 class Warehouse(tk.Frame):
@@ -1566,6 +1752,10 @@ class Warehouse(tk.Frame):
             top_level.geometry("900x600")
             top_level.config(bg=util.secondary_color)
             util.destroy_frame(top_level)
+            top_level.transient(self.main)
+            top_level.grab_set()
+            top_level.attributes('-topmost', True)
+            top_level.focus_force()
 
             driver_details_frame = util.frame(top_level, util.tertiary_color, 1, 0.02, 0.1, 0, 0, 850, 30)
             util.label(driver_details_frame, "Commodity Details", 13, "bold", util.white_font_color,
@@ -1606,11 +1796,15 @@ class Warehouse(tk.Frame):
             util.label(top_level, "NOTE: Tertiary Package - This is used by warehouses when shipping products in secondary packaging.", 11, "bold", util.white_font_color, util.secondary_color, 0.03, 0.6)
 
             def create_button():
+                if not all([product_name_var.get(), product_quantity_var.get(), get_package_type.get(), specification_var.get(), total_weight_var.get(), rate_var.get(), total_amount_var.get()]):
+                    messagebox.showwarning("Application", "Please fill in all fields.", parent=top_level)
+                    return
+
                 query = "INSERT INTO warehouse (warehouse_id, product_name, quantity, package_type, specification, total_weight, total_value) VALUES (%s, %s, %s, %s, %s, %s, %s)"
                 values = (f"WR-{util.generate_id('4849')}", product_name_var.get(), product_quantity_var.get(), get_package_type.get(), specification_var.get(), total_weight_var.get(), total_amount_var.get())
                 self.cursor.execute(query, values)
                 self.connection.commit()
-                result = messagebox.showinfo("Application", "Commodities created successfully")
+                result = messagebox.showinfo("Application", "Commodities created successfully", parent=top_level)
                 if result == 'ok':
                     top_level.destroy()
                     self.display_warehouse_commodities()
@@ -1694,6 +1888,9 @@ class Warehouse(tk.Frame):
                 util.canvas_text(self.main, frame_canvas, 1000, 12, result[5], util.white_font_color, 13, "", True)
                 util.canvas_text(self.main, frame_canvas, 1300, 12, result[6], util.white_font_color, 13, "", True)
                 util.canvas_text(self.main, frame_canvas, 1500, 12, result[7], util.white_font_color, 13, "", True)
+        else:
+            util.label(self.scrollbar_window, "No Commodities", 20, "bold", util.white_font_color,
+                       util.primary_color, 0.43, 0.45)
 
 
 class Shipments(tk.Frame):
@@ -1751,7 +1948,11 @@ class Shipments(tk.Frame):
     def display_shipments(self):
         util.destroy_frame(self.scrollbar_window)
 
-        query = "SELECT orders.order_id, quotation.client_name, orders.departure_location, orders.arrival_location, quotation.created_on, invoice.shipping_charges, orders.order_status FROM ((orders INNER JOIN quotation ON quotation.quotation_id = orders.user_id) INNER JOIN invoice ON invoice.user_id = orders.user_id)"
+        query = """SELECT orders.order_id, quotation.client_name, orders.departure_location, orders.arrival_location,
+                quotation.created_on, invoice.shipping_charges, orders.order_status
+                FROM orders
+                LEFT JOIN quotation ON quotation.quotation_id = orders.user_id
+                LEFT JOIN invoice ON invoice.user_id = orders.user_id"""
         self.cursor.execute(query)
         results = self.cursor.fetchall()
 
@@ -1807,6 +2008,9 @@ class Shipments(tk.Frame):
                 util.canvas_text(self.main, frame_canvas, 1000, 12, result[4], util.white_font_color, 13, "", True)
                 util.canvas_text(self.main, frame_canvas, 1300, 12, result[5], util.white_font_color, 13, "", True)
                 util.canvas_text(self.main, frame_canvas, 1500, 12, result[6], util.white_font_color, 13, "", True)
+        else:
+            util.label(self.scrollbar_window, "No Shipments", 20, "bold", util.white_font_color,
+                       util.primary_color, 0.43, 0.45)
 
 
 class Tracking(tk.Frame):
@@ -1917,6 +2121,9 @@ class Tracking(tk.Frame):
                 util.canvas_text(self.main, frame_canvas, 700, 12, result[3], util.white_font_color, 13, "", True)
                 util.canvas_text(self.main, frame_canvas, 1000, 12, result[4], util.white_font_color, 13, "", True)
                 util.canvas_text(self.main, frame_canvas, 1300, 12, result[5], util.white_font_color, 13, "", True)
+        else:
+            util.label(self.scrollbar_window, "No Shipments", 20, "bold", util.white_font_color,
+                       util.primary_color, 0.43, 0.45)
 
 
 class Invoice(tk.Frame):
@@ -1975,16 +2182,27 @@ class Invoice(tk.Frame):
             top_level.geometry("900x600")
             top_level.config(bg=util.secondary_color)
             util.destroy_frame(top_level)
+            top_level.transient(self.main)
+            top_level.grab_set()
+            top_level.attributes('-topmost', True)
+            top_level.focus_force()
 
             util.label(top_level, "Quotation Id", 12, "bold", util.white_font_color, util.secondary_color, 0.07, 0.03)
             quotation_id, quotation_id_var, quotation_id_frame = util.frame_entry(top_level, "", 0.33, 0.03, 0, 0, 200, 30)
 
             def search_quotation_id():
+                if not quotation_id_var.get():
+                    messagebox.showwarning("Error", "Please enter a Quotation ID.", parent=top_level)
+                    return
+
                 search_query = f"SELECT quotation.client_name FROM quotation WHERE quotation_id = '{quotation_id_var.get()}'"
                 self.cursor.execute(search_query)
                 result = self.cursor.fetchone()
 
-                client_name_var.set(result[0])
+                if result:
+                    client_name_var.set(result[0])
+                else:
+                    messagebox.showwarning("Error", "No record found for the provided Quotation ID.", parent=top_level)
 
             util.button(top_level, 0.77, 0.03, 0, 0, 80, 30, "Search", 12, "bold", util.white_font_color,
                         util.primary_color, search_quotation_id, "")
@@ -2025,6 +2243,10 @@ class Invoice(tk.Frame):
             total_amount, total_amount_var = util.label(top_level, "", 12, "bold", util.white_font_color, util.secondary_color, 0.7, 0.46)
 
             def calculate_amount():
+                if not all([quantity_var.get(), rate_var.get(), gst_var.get()]):
+                    messagebox.showwarning("Application", "Please fill in all fields.", parent=top_level)
+                    return
+
                 total = float(quantity_var.get()) * float(rate_var.get())
                 total_gst = (float(gst_var.get()) / 100) * total
                 total_shipping = (5 / 100) * (total * total_gst)
@@ -2036,11 +2258,15 @@ class Invoice(tk.Frame):
                         util.primary_color, calculate_amount, "")
 
             def create_invoice_button():
+                if not all([client_name_var.get(), get_invoice_type.get(), get_payment_type.get(), quantity_var.get(), rate_var.get(), gst_var.get(), total_amount_var.get()]):
+                    messagebox.showwarning("Application", "Please fill in all fields.", parent=top_level)
+                    return
+
                 insert_query = "INSERT INTO invoice (invoice_id, user_id, invoice_type, payment_type, quantity, rate, gst, total_amount, status, shipping_charges) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
                 values = (f"IN-{util.generate_id('4849')}", quotation_id_var.get(), get_invoice_type.get(), get_payment_type.get(), quantity_var.get(), rate_var.get(), gst_var.get(), total_amount_var.get(), 'Unpaid', self.shipping_amount)
                 self.cursor.execute(insert_query, values)
                 self.connection.commit()
-                result = messagebox.showinfo("Application", "Invoice created successfully")
+                result = messagebox.showinfo("Application", "Invoice created successfully", parent=top_level)
                 if result == 'ok':
                     top_level.destroy()
                     self.display_invoice()
@@ -2067,21 +2293,32 @@ class Invoice(tk.Frame):
             top_level.geometry("900x600")
             top_level.config(bg=util.secondary_color)
             util.destroy_frame(top_level)
+            top_level.transient(self.main)
+            top_level.grab_set()
+            top_level.attributes('-topmost', True)
+            top_level.focus_force()
 
             util.label(top_level, "Invoice Id", 12, "bold", util.white_font_color, util.secondary_color, 0.07, 0.03)
             invoice_id, invoice_id_var, invoice_id_frame = util.frame_entry(top_level, "", 0.33, 0.03, 0, 0, 200, 30)
 
             def search_quotation_id():
+                if not invoice_id_var.get():
+                    messagebox.showwarning("Error", "Please enter a Request ID.", parent=top_level)
+                    return
+
                 search_query = f"SELECT * FROM invoice WHERE quotation_id = '{invoice_id_var.get()}'"
                 self.cursor.execute(search_query)
                 result = self.cursor.fetchone()
 
-                get_invoice_type.set(result[3])
-                get_payment_type.set(result[4])
-                quantity_var.set(result[5])
-                rate_var.set(result[6])
-                gst_var.set(result[7])
-                total_amount_var.set(result[8])
+                if result:
+                    get_invoice_type.set(result[3])
+                    get_payment_type.set(result[4])
+                    quantity_var.set(result[5])
+                    rate_var.set(result[6])
+                    gst_var.set(result[7])
+                    total_amount_var.set(result[8])
+                else:
+                    messagebox.showwarning("Error", "No record found for the provided Invoice ID.", parent=top_level)
 
             util.button(top_level, 0.77, 0.03, 0, 0, 80, 30, "Search", 12, "bold", util.white_font_color,
                         util.primary_color, search_quotation_id, "")
@@ -2116,6 +2353,10 @@ class Invoice(tk.Frame):
                                                         util.secondary_color, 0.7, 0.46)
 
             def calculate_amount():
+                if not all([quantity_var.get(), rate_var.get(), gst_var.get()]):
+                    messagebox.showwarning("Application", "Please fill in all fields.", parent=top_level)
+                    return
+
                 total = float(quantity_var.get()) * float(rate_var.get())
                 total_gst = (float(gst_var.get()) / 100) * total
                 total_shipping = (5 / 100) * (total * total_gst)
@@ -2131,7 +2372,7 @@ class Invoice(tk.Frame):
                 values = (get_invoice_type.get(), get_payment_type.get(), quantity_var.get(), rate_var.get(), gst_var.get(), total_amount_var.get(), self.shipping_amount)
                 self.cursor.execute(update_query, values)
                 self.connection.commit()
-                result = messagebox.showinfo("Application", "Quotation updated")
+                result = messagebox.showinfo("Application", "Quotation updated", parent=top_level)
                 if result == 'ok':
                     top_level.destroy()
                     self.display_invoice()
@@ -2159,7 +2400,11 @@ class Invoice(tk.Frame):
     def display_invoice(self):
         util.destroy_frame(self.scrollbar_window)
 
-        query = "SELECT invoice.invoice_id, quotation.client_name, invoice.invoice_type, orders.departure_date, orders.arrival_date, invoice.total_amount, invoice.status FROM ((invoice INNER JOIN quotation ON invoice.user_id = quotation.quotation_id) INNER JOIN orders ON invoice.user_id = orders.user_id)"
+        query = """SELECT invoice.invoice_id, quotation.client_name, invoice.invoice_type, orders.departure_date,
+                orders.arrival_date, invoice.total_amount, invoice.status 
+                FROM invoice 
+                LEFT JOIN quotation ON invoice.user_id = quotation.quotation_id 
+                LEFT JOIN orders ON invoice.user_id = orders.user_id"""
         self.cursor.execute(query)
         results = self.cursor.fetchall()
 
