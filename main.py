@@ -494,7 +494,7 @@ class Quotation(tk.Frame):
 
         def update_quotation():
             top_level = tk.Toplevel()
-            top_level.title("Create Booking")
+            top_level.title("Update Quotation")
             top_level.geometry("500x400")
             top_level.config(bg=util.secondary_color)
             top_level.transient(self.main)
@@ -707,7 +707,7 @@ class Orders(tk.Frame):
 
         def create_order():
             top_level = tk.Toplevel()
-            top_level.title("Create Booking")
+            top_level.title("Create Order")
             top_level.geometry("900x600")
             top_level.config(bg=util.secondary_color)
             top_level.transient(self.main)
@@ -1044,7 +1044,7 @@ class Users(tk.Frame):
 
             def create_driver():
                 top_level = tk.Toplevel()
-                top_level.title("Create Booking")
+                top_level.title("Create Driver")
                 top_level.geometry("900x600")
                 top_level.config(bg=util.secondary_color)
                 top_level.transient(self.main)
@@ -1105,7 +1105,7 @@ class Users(tk.Frame):
 
             def update_driver():
                 top_level = tk.Toplevel()
-                top_level.title("Create Booking")
+                top_level.title("Update Driver")
                 top_level.geometry("900x600")
                 top_level.config(bg=util.secondary_color)
                 top_level.transient(self.main)
@@ -1542,7 +1542,7 @@ class Transport(tk.Frame):
 
         def update_transport():
             top_level = tk.Toplevel()
-            top_level.title("Request Quotation")
+            top_level.title("Update Transport")
             top_level.geometry("900x600")
             top_level.config(bg=util.secondary_color)
             util.destroy_frame(top_level)
@@ -1788,7 +1788,7 @@ class Warehouse(tk.Frame):
 
         def create_commodity():
             top_level = tk.Toplevel()
-            top_level.title("Request Quotation")
+            top_level.title("Create Commodity")
             top_level.geometry("900x600")
             top_level.config(bg=util.secondary_color)
             util.destroy_frame(top_level)
@@ -1865,7 +1865,7 @@ class Warehouse(tk.Frame):
         util.button(self.main, 0.77, 0.1, 0, 0, 210, 50, "Create Commodity", 13, "bold", util.tertiary_color,
                     util.primary_color, create_commodity, create_btn)
 
-        self.scrollbar_window = util.frame(self.main, util.primary_color, 1, 0.03, 0.2, 0, 0, 600, 630)
+        self.scrollbar_window = util.frame(self.main, util.primary_color, 1, 0.03, 0.2, 0, 0, 1080, 630)
         self.display_warehouse_commodities()
 
     def display_warehouse_commodities(self):
@@ -1914,6 +1914,8 @@ class Warehouse(tk.Frame):
                              False)
             util.canvas_text(self.main, header_canvas, 1500, 6, "Total Value", util.white_font_color, 13, "bold",
                              False)
+            util.canvas_text(self.main, header_canvas, 1733, 6, "Action", util.white_font_color, 13, "bold",
+                             False)
 
             frame = tk.Frame(canvas, bg=util.secondary_color, borderwidth=1, relief='solid')
             canvas.create_window(0, 0, window=frame, anchor='nw')
@@ -1928,9 +1930,24 @@ class Warehouse(tk.Frame):
                 util.canvas_text(self.main, frame_canvas, 1000, 12, result[5], util.white_font_color, 13, "", True)
                 util.canvas_text(self.main, frame_canvas, 1300, 12, result[6], util.white_font_color, 13, "", True)
                 util.canvas_text(self.main, frame_canvas, 1500, 12, result[7], util.white_font_color, 13, "", True)
+
+                def recycle_command(res):
+                    def command():
+                        question = messagebox.askquestion("Application", "Are you sure you want to delete?")
+                        if question == 'yes':
+                            delete_query = f"DELETE FROM warehouse WHERE id = {res[0]}"
+                            self.cursor.execute(delete_query)
+                            self.connection.commit()
+                            self.display_warehouse_commodities()
+                    return command
+
+                recycle_callback = recycle_command(result)
+                recycle_button = util.image(frame_canvas, "icons/recycle-bin-icon.png", util.primary_color, 0.8, 0.22, 10, 0, 20, 20)
+                util.button(frame_canvas, 0.8, 0.22, 12, 2, 20, 20, "", 12, "", util.primary_color, util.primary_color, recycle_callback, recycle_button)
         else:
             util.label(self.scrollbar_window, "No Commodities", 20, "bold", util.white_font_color,
                        util.primary_color, 0.43, 0.45)
+
 
 
 class Shipments(tk.Frame):
@@ -2218,7 +2235,7 @@ class Invoice(tk.Frame):
 
         def create_invoice():
             top_level = tk.Toplevel()
-            top_level.title("Request Quotation")
+            top_level.title("Create Invoice")
             top_level.geometry("900x600")
             top_level.config(bg=util.secondary_color)
             util.destroy_frame(top_level)
@@ -2266,18 +2283,18 @@ class Invoice(tk.Frame):
             get_payment_type = util.combobox(top_level, 0.25, 0.39, ('Cash', 'Credit Card', 'Debit Card'))
 
             util.label(top_level, "Quantity", 12, "bold", util.white_font_color, util.secondary_color, 0.03, 0.46)
-            quantity, quantity_var, quantity_frame = util.frame_entry(top_level, "", 0.25,
-                                                                                                    0.46, 0, 0, 200, 30)
+            quantity, quantity_var, quantity_frame = util.frame_entry(top_level, "", 0.25, 0.46, 0, 0, 200, 30)
+
+            util.label(top_level, "Status", 12, "bold", util.white_font_color, util.secondary_color, 0.03, 0.53)
+            get_status = util.combobox(top_level, 0.25, 0.53, ('Paid', 'Unpaid', 'Due', 'Overdue'))
 
             util.label(top_level, "Rate", 12, "bold", util.white_font_color, util.secondary_color, 0.5,
                        0.32)
-            rate, rate_var, rate_frame = util.frame_entry(top_level, "", 0.7,
-                                                                                                    0.32, 0, 0, 200, 30)
+            rate, rate_var, rate_frame = util.frame_entry(top_level, "", 0.7, 0.32, 0, 0, 200, 30)
 
             util.label(top_level, "GST (%)", 12, "bold", util.white_font_color, util.secondary_color, 0.5,
                        0.39)
-            gst, gst_var, gst_frame = util.frame_entry(top_level, "", 0.7, 0.39,
-                                                                                              0, 0, 200, 30)
+            gst, gst_var, gst_frame = util.frame_entry(top_level, "", 0.7, 0.39, 0, 0, 200, 30)
 
             util.label(top_level, "Total Amount", 12, "bold", util.white_font_color, util.secondary_color, 0.5, 0.46)
             total_amount, total_amount_var = util.label(top_level, "", 12, "bold", util.white_font_color, util.secondary_color, 0.7, 0.46)
@@ -2303,7 +2320,7 @@ class Invoice(tk.Frame):
                     return
 
                 insert_query = "INSERT INTO invoice (invoice_id, user_id, invoice_type, payment_type, quantity, rate, gst, total_amount, status, shipping_charges) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-                values = (f"IN-{util.generate_id('4849')}", quotation_id_var.get(), get_invoice_type.get(), get_payment_type.get(), quantity_var.get(), rate_var.get(), gst_var.get(), total_amount_var.get(), 'Unpaid', self.shipping_amount)
+                values = (f"IN-{util.generate_id('4849')}", quotation_id_var.get(), get_invoice_type.get(), get_payment_type.get(), quantity_var.get(), rate_var.get(), gst_var.get(), total_amount_var.get(), get_status.get(), self.shipping_amount)
                 self.cursor.execute(insert_query, values)
                 self.connection.commit()
                 result = messagebox.showinfo("Application", "Invoice created successfully", parent=top_level)
@@ -2329,7 +2346,7 @@ class Invoice(tk.Frame):
 
         def update_invoice():
             top_level = tk.Toplevel()
-            top_level.title("Request Quotation")
+            top_level.title("Update Invoice")
             top_level.geometry("900x600")
             top_level.config(bg=util.secondary_color)
             util.destroy_frame(top_level)
@@ -2346,7 +2363,7 @@ class Invoice(tk.Frame):
                     messagebox.showwarning("Error", "Please enter a Request ID.", parent=top_level)
                     return
 
-                search_query = f"SELECT * FROM invoice WHERE quotation_id = '{invoice_id_var.get()}'"
+                search_query = f"SELECT * FROM invoice WHERE invoice_id = '{invoice_id_var.get()}'"
                 self.cursor.execute(search_query)
                 result = self.cursor.fetchone()
 
@@ -2375,8 +2392,10 @@ class Invoice(tk.Frame):
             get_payment_type = util.combobox(top_level, 0.25, 0.39, ('Cash', 'Credit Card', 'Debit Card'))
 
             util.label(top_level, "Quantity", 12, "bold", util.white_font_color, util.secondary_color, 0.03, 0.46)
-            quantity, quantity_var, quantity_frame = util.frame_entry(top_level, "", 0.25,
-                                                                      0.46, 0, 0, 200, 30)
+            quantity, quantity_var, quantity_frame = util.frame_entry(top_level, "", 0.25, 0.46, 0, 0, 200, 30)
+
+            util.label(top_level, "Status", 12, "bold", util.white_font_color, util.secondary_color, 0.03, 0.53)
+            get_status = util.combobox(top_level, 0.25, 0.53, ('Paid', 'Unpaid', 'Due', 'Overdue'))
 
             util.label(top_level, "Rate", 12, "bold", util.white_font_color, util.secondary_color, 0.5,
                        0.32)
@@ -2408,8 +2427,8 @@ class Invoice(tk.Frame):
                         util.primary_color, calculate_amount, "")
 
             def update_quotation_button():
-                update_query = "UPDATE invoice SET invoice_type = %s, payment_type = %s, quantity = %s, rate = %s, gst = %s, total_amount = %s, shipping_charges = %s"
-                values = (get_invoice_type.get(), get_payment_type.get(), quantity_var.get(), rate_var.get(), gst_var.get(), total_amount_var.get(), self.shipping_amount)
+                update_query = "UPDATE invoice SET invoice_type = %s, payment_type = %s, quantity = %s, rate = %s, gst = %s, total_amount = %s, shipping_charges = %s, status = %s"
+                values = (get_invoice_type.get(), get_payment_type.get(), quantity_var.get(), rate_var.get(), gst_var.get(), total_amount_var.get(), self.shipping_amount, get_status.get())
                 self.cursor.execute(update_query, values)
                 self.connection.commit()
                 result = messagebox.showinfo("Application", "Quotation updated", parent=top_level)
@@ -2552,6 +2571,135 @@ class Reports(tk.Frame):
 
         util.menus(self, "icons/exit-menu-icon.png", "Sign Out", 0.8, sign_out_button,
                    util.white_font_color, False)
+
+        self.key_performance_frame = util.frame(self.main, util.primary_color, 0, 0.03, 0.18, 0, 0, 1080, 640)
+        self.pie_chart = util.frame(self.key_performance_frame, util.secondary_color, 0, 0.03, 0.2, 0, 0, 980, 480)
+        self.switch_frame = util.frame(self.pie_chart, util.secondary_color, 0, 0.03, 0.03, 0, 0, 500, 35)
+
+        def due_overdue():
+            util.button(self.switch_frame, 0.03, 0.1, 0, 0, 100, 30, "Due/Overdue", 12, "bold", util.tertiary_color, util.secondary_color, due_overdue, "")
+            util.button(self.switch_frame, 0.3, 0.1, 0, 0, 100, 30, "Revenue/Net", 12, "bold", util.white_font_color, util.secondary_color, revenue_net, "")
+
+            self.display_due_overdue()
+
+        def revenue_net():
+            util.button(self.switch_frame, 0.03, 0.1, 0, 0, 100, 30, "Due/Overdue", 12, "bold", util.white_font_color, util.secondary_color, due_overdue, "")
+            util.button(self.switch_frame, 0.3, 0.1, 0, 0, 100, 30, "Revenue/Net", 12, "bold", util.tertiary_color, util.secondary_color, revenue_net, "")
+
+            self.display_revenue_net()
+
+        due_overdue()
+
+        self.display_revenue()
+
+    def display_revenue(self):
+        def summary_tables(title, query, x, y):
+            self.summary_frame = util.frame(self.key_performance_frame, util.secondary_color, 0, x, y, 0, 0, 200,
+                                            60)
+            util.label(self.summary_frame, title, 13, "bold", util.white_font_color, util.secondary_color, 0.03, 0.05)
+            try:
+                self.cursor.execute(query)
+                data = self.cursor.fetchone()
+                revenue = data[0]
+                formatted_revenue = f"Rs. {revenue:,.2f}"
+                util.label(self.summary_frame, formatted_revenue, 12, "", util.white_font_color, util.secondary_color,
+                           0.03, 0.5)
+            except Exception as e:
+                util.label(self.summary_frame, "Rs. 0", 12, "", util.white_font_color,
+                           util.secondary_color, 0.03, 0.5)
+
+        summary_tables("NET", """SELECT invoice.total_amount
+        FROM invoice
+        INNER JOIN orders ON invoice.user_id = orders.user_id
+        WHERE orders.delivery_status = 'DELIVERED'
+        """, 0.03, 0.05)
+        summary_tables("PENDING ORDERS", """SELECT invoice.total_amount
+        FROM invoice
+        INNER JOIN orders ON invoice.user_id = orders.user_id
+        WHERE orders.delivery_status = 'NOT DELIVERED'""", 0.25, 0.05)
+        summary_tables("DUE", """SELECT invoice.total_amount FROM invoice WHERE status = 'Due'""", 0.47, 0.05)
+        summary_tables("Overdue", """SELECT invoice.total_amount FROM invoice WHERE status = 'Overdue'""", 0.69, 0.05)
+
+    def display_due_overdue(self):
+        def fetch_data(query):
+            if not self.cursor:
+                print("Database cursor is not available.")
+                return None
+            try:
+                self.cursor.execute(query)
+                result = self.cursor.fetchone()
+                if result is None:
+                    return 0
+                value = result[0]
+                if value is None or isinstance(value, str) and not value.isdigit():
+                    return 0
+                return float(value)
+            except (mysql.connector.Error, ValueError) as err:
+                print(f"Error fetching data: {err}")
+                return None
+
+        def display_pie_chart():
+            due_query = "SELECT SUM(total_amount) FROM invoice WHERE status = 'Due'"
+            overdue_query = "SELECT SUM(total_amount) FROM invoice WHERE status = 'Overdue'"
+
+            due_total = fetch_data(due_query)
+            overdue_total = fetch_data(overdue_query)
+
+            labels = ['Due', 'Overdue']
+            sizes = [due_total, overdue_total]
+
+            figure = Figure(figsize=(6, 4), dpi=100)
+            axis = figure.add_subplot(111)
+            axis.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
+            axis.set_title('Due and Overdue')
+
+            canvas = FigureCanvasTkAgg(figure, master=self.pie_chart)
+            canvas.draw()
+            canvas.get_tk_widget().place(relx=0.03, rely=0.15)
+
+        display_pie_chart()
+
+    def display_revenue_net(self):
+        def fetch_data(query):
+            if not self.cursor:
+                print("Database cursor is not available.")
+                return None
+            try:
+                self.cursor.execute(query)
+                result = self.cursor.fetchone()
+                if result is None:
+                    return 0
+                value = result[0]
+                if value is None or isinstance(value, str) and not value.isdigit():
+                    return 0
+                return float(value)
+            except (mysql.connector.Error, ValueError) as err:
+                print(f"Error fetching data: {err}")
+                return None
+
+        def display_pie_chart():
+            pending_orders_query = """SELECT invoice.total_amount 
+            FROM invoice
+            INNER JOIN orders ON invoice.user_id = orders.user_id
+            WHERE orders.delivery_status = 'NOT DELIVERED'"""
+            net_query = "SELECT SUM(total_amount) FROM invoice WHERE status = 'Overdue'"
+
+            due_total = fetch_data(pending_orders_query)
+            overdue_total = fetch_data(net_query)
+
+            labels = ['Due', 'Overdue']
+            sizes = [due_total, overdue_total]
+
+            figure = Figure(figsize=(6, 4), dpi=100)
+            axis = figure.add_subplot(111)
+            axis.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
+            axis.set_title('Due and Overdue')
+
+            canvas = FigureCanvasTkAgg(figure, master=self.pie_chart)
+            canvas.draw()
+            canvas.get_tk_widget().place(relx=0.03, rely=0.15)
+
+        display_pie_chart()
 
 
 app = Application()
