@@ -133,7 +133,6 @@ def canvas_text(window, fr, x, y, txt, bg_c, f_size, f_style, flag):
         window.clipboard_clear()
         window.clipboard_append(t)
         window.update_idletasks()
-        print(f"Copied to clipboard: {t}")
 
     def on_enter(frame_canvas, event, t):
         frame_canvas.itemconfig(t, fill=tertiary_color)
@@ -200,7 +199,15 @@ def open_calendar(f, x, y):
 
         def grab_date():
             select_date = cal.get_date()
-            date_label_var.set(select_date)
+            month, day, year = map(int, select_date.split('/'))
+            if year < 100:
+                if year <= datetime.now().year % 100:
+                    year += 2000
+                else:
+                    year += 1900
+            selected_date = datetime(year, month, day)
+            formatted_date = selected_date.strftime("%d %b, %Y")
+            date_label_var.set(formatted_date)
             top.destroy()
 
         tk.Button(top, text="Select", command=grab_date).pack()

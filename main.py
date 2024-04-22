@@ -3,7 +3,7 @@ from tkinter import messagebox, ttk
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
-from matplotlib.backends.backend_agg import FigureCanvasAgg
+from calendar import month_name
 import utility as util
 import mysql
 from mysql.connector import errorcode
@@ -230,10 +230,10 @@ class Dashboard(tk.Frame):
         util.label(active_quotation_frame, "Active Quotations", 15, "bold", util.white_font_color, util.primary_color, 0.03, 0.02)
 
         self.scrollbar_window = util.frame(active_quotation_frame, util.primary_color, 1, 0, 0.1, 0, 0, 500, 540)
-
+        self.graph_frame = util.frame(self.main, util.primary_color, 0, 0.03, 0.3, 0, 0, 600, 550)
+        self.display_graph()
         self.display_summary_frames()
         self.display_active_quotes()
-        self.display_graph()
 
     def display_summary_frames(self):
         def create_frames(frame_text, values, x, y):
@@ -257,8 +257,8 @@ class Dashboard(tk.Frame):
 
         query = """SELECT quotation.client_name, invoice.status, orders.delivery_status
                 FROM quotation
-                LEFT JOIN invoice ON quotation.quotation_id = invoice.user_id
-                LEFT JOIN orders ON quotation.quotation_id = orders.user_id"""
+                INNER JOIN invoice ON quotation.quotation_id = invoice.user_id
+                INNER JOIN orders ON quotation.quotation_id = orders.user_id"""
         self.cursor.execute(query)
         results = self.cursor.fetchall()
 
@@ -305,40 +305,76 @@ class Dashboard(tk.Frame):
             util.label(self.scrollbar_window, "No Active Quotations", 15, "bold", util.white_font_color,
                        util.primary_color, 0.3, 0.4)
 
-
     def display_graph(self):
-        graph_frame = util.frame(self.main, util.primary_color, 0, 0.03, 0.3, 0, 0, 600, 550)
-        orders_query = "SELECT departure_date FROM orders"
-        # self.cursor.execute(orders_query)
-        # result = self.cursor.fetchall()
-        #
-        # date_tuple = result[0]
-        # day = date_tuple[0].split('/')[0]
-        #
-        # figure = Figure(figsize=(5, 4), dpi=100)
-        #
-        # axis = figure.add_subplot(111)
-        #
-        # x_values = [1, 1, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-        # y_values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-        #
-        # axis.plot(x_values, y_values, marker='o', label='line 1')
-        # axis.plot(x_values, y_values[::-1], marker='o', label='line 2')
-        #
-        # axis.set_xticks(x_values)
-        # months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-        # axis.set_xticklabels(months)
-        #
-        # axis.set_title("Performance Chart Year - 2024", loc='left')
-        # axis.set_ylabel('Total Numbers')
-        # axis.set_xlabel('Months')
-        # axis.grid(axis='y')
-        # axis.legend()
-        #
-        # canvas = FigureCanvasTkAgg(figure, master=graph_frame)
-        # canvas.draw()
-        # canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        def fetch_orders_data():
+            try:
+                order_query = """
+                SELECT MONTH(STR_TO_DATE(departure_date, '%d %b, %Y')), COUNT(*)
+                FROM orders
+                WHERE departure_date IS NOT NULL
+                GROUP BY MONTH(STR_TO_DATE(departure_date, '%d %b, %Y'))
+                ORDER BY MONTH(STR_TO_DATE(departure_date, '%d %b, %Y'))
+                """
 
+                shipment_query = """
+                SELECT MONTH(STR_TO_DATE(created_on, '%d %b, %Y')), COUNT(*)
+                FROM transport
+                WHERE created_on IS NOT NULL
+                GROUP BY MONTH(STR_TO_DATE(created_on, '%d %b, %Y'))
+                ORDER BY MONTH(STR_TO_DATE(created_on, '%d %b, %Y'))
+                """
+
+                self.cursor.execute(order_query)
+                order_result = self.cursor.fetchall()
+
+                self.cursor.execute(shipment_query)
+                shipment_result = self.cursor.fetchall()
+                return order_result, shipment_result
+            except mysql.connector.Error as err:
+                messagebox.showwarning("Application", f"Error: {err}")
+                return []
+
+        def plot_orders(order, shipment):
+            months = [month_name[i][0:3] for i in range(1, 13)]
+            orders_dict = {month: 0 for month in months}
+            shipments_dict = {month: 0 for month in months}
+
+            for month, total in order:
+                if month is not None and 1 <= month <= 12:
+                    orders_dict[months[month - 1]] = total
+                else:
+                    messagebox.showwarning("Application", f"Invalid month value: {month}")
+
+            for month, total in shipment:
+                if month is not None and 1 <= month <= 12:
+                    shipments_dict[months[month - 1]] = total
+
+            orders_count = [orders_dict[month] for month in months]
+            max_orders = max(orders_count, default=0) + 10
+
+            shipments_count = [shipments_dict[month] for month in months]
+            max_shipments = max(shipments_count, default=0) + 10
+
+            figure = Figure(figsize=(10, 5), dpi=100)
+            axis = figure.add_subplot(111)
+            axis.plot(months, orders_count, label='Total Orders', marker='o', color='b')
+            axis.plot(months, shipments_count, label='Total Shipments', marker='o', color='r')
+            axis.set_title("Performance Chart", loc='left')
+            axis.set_xlabel('Month')
+            axis.set_ylabel('Total Count')
+            axis.set_ylim(0, max(max_orders, max_shipments))
+            axis.legend()
+            axis.grid(True)
+
+            canvas = FigureCanvasTkAgg(figure, master=self.graph_frame)
+            canvas.draw()
+            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+        orders, shipments = fetch_orders_data()
+        if orders:
+            plot_orders(orders, shipments)
+        else:
+            messagebox.showwarning("Application", "No order data to display.")
 
 
 class Quotation(tk.Frame):
@@ -726,16 +762,16 @@ class Orders(tk.Frame):
             arrival_location, arrival_location_var, arrival_location_frame = util.frame_entry(top_level, "", 0.7, 0.39, 0, 0, 200, 30)
 
             util.label(top_level, "Specification", 12, "bold", util.white_font_color, util.secondary_color, 0.5, 0.46)
-            specificaiton, specificaiton_var, specificaiton_frame = util.frame_entry(top_level, "", 0.7, 0.46, 0, 0, 200, 30)
+            specification, specification_var, specification_frame = util.frame_entry(top_level, "", 0.7, 0.46, 0, 0, 200, 30)
 
             def create_order_button():
                 try:
-                    if not all([client_name_var.get(), product_description_var.get(), departure_date.get(), arrival_date.get(), departure_location_var.get(), arrival_location_var.get(), specificaiton_var.get()]):
+                    if not all([client_name_var.get(), product_description_var.get(), departure_date.get(), arrival_date.get(), departure_location_var.get(), arrival_location_var.get(), specification_var.get()]):
                         messagebox.showwarning("Application", "Please fill in all fields.", parent=top_level)
                         return
 
                     insert_query = "INSERT INTO orders (order_id, user_id, order_status, product_category, departure_date, arrival_date, departure_location, arrival_location, specification) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
-                    values = (f"OR-{util.generate_id('9893')}", quotation_id_var.get(), 'ACTIVE', product_description_var.get(), departure_date.get(), arrival_date.get(), departure_location_var.get(), arrival_location_var.get(), specificaiton_var.get())
+                    values = (f"OR-{util.generate_id('9893')}", quotation_id_var.get(), 'ACTIVE', product_description_var.get(), departure_date.get(), arrival_date.get(), departure_location_var.get(), arrival_location_var.get(), specification_var.get())
                     self.cursor.execute(insert_query, values)
                     self.connection.commit()
                     result = messagebox.showinfo("Application", "Order created successfully", parent=top_level)
@@ -828,10 +864,11 @@ class Orders(tk.Frame):
                                                                                      200, 30)
 
             def update_order_button():
-                update_query = "UPDATE orders SET product_category = %s, departure_date = %s, arrival_date = %s, departure_location = %s, arrival_location = %s, specification = %s, delivery_status = %s"
+                update_query = f"UPDATE orders SET product_category = %s, departure_date = %s, arrival_date = %s, departure_location = %s, arrival_location = %s, specification = %s, delivery_status = %s WHERE user_id = '{order_id_var.get()}'"
                 values = (product_description_var.get(), departure_date.get(), arrival_date.get(), departure_location_var.get(), arrival_location_var.get(), specification_var.get(), 'NOT DELIVERED')
                 self.cursor.execute(update_query, values)
-                result = messagebox.askquestion("Application", "Order updated successfully", parent=top_level)
+                result = messagebox.showinfo("Application", "Order updated successfully", parent=top_level)
+                self.connection.commit()
                 if result == 'ok':
                     top_level.destroy()
                     self.display_orders()
@@ -1035,6 +1072,14 @@ class Users(tk.Frame):
                 driver_license, driver_license_var, driver_license_frame = util.frame_entry(top_level, "", 0.68, 0.25, 0, 0, 200, 30)
 
                 def create_driver_button():
+                    if not all([driver_name_var.get(), vehicle_category_var.get(), vehicle_number_var.get(), vehicle_model_var.get(), date_label_var.get(), contact_no_var.get(), driver_license_var.get()]):
+                        messagebox.showwarning("Application", "Please fill in all fields.", parent=top_level)
+                        return
+
+                    if len(contact_no_var.get()) != 10 or not contact_no_var.get().isdigit():
+                        messagebox.showwarning("Application", "Please enter a valid 10-digit phone number", parent=top_level)
+                        return
+
                     insert_query = "INSERT INTO driver (driver_id, driver_name, vehicle_category, vehicle_number, vehicle_model, issue_date, contact_no, driver_license, status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
                     values = (f"DR-{util.generate_id('8983')}", driver_name_var.get(), vehicle_category_var.get(), vehicle_number_var.get(), vehicle_model_var.get(), date_label_var.get(), contact_no_var.get(), driver_license_var.get(), 'AVAILABLE')
                     self.cursor.execute(insert_query, values)
@@ -1042,10 +1087,9 @@ class Users(tk.Frame):
                     result = messagebox.showinfo("Application", "Driver created", parent=top_level)
                     if result == 'ok':
                         self.display_driver()
+                        top_level.destroy()
 
-                util.button(top_level, 0.25, 0.8, 0, 0, 100, 35, "Create", 15, "bold", util.secondary_color,
-                            util.edit_color,
-                            create_driver_button, "")
+                util.button(top_level, 0.25, 0.8, 0, 0, 100, 35, "Create", 15, "bold", util.secondary_color, util.edit_color, create_driver_button, "")
 
                 def back_button():
                     top_level.destroy()
@@ -1369,20 +1413,16 @@ class Transport(tk.Frame):
 
         def create_transport():
             top_level = tk.Toplevel()
-            top_level.title("Request Quotation")
+            top_level.title("Create Transport")
             top_level.geometry("900x600")
             top_level.config(bg=util.secondary_color)
             util.destroy_frame(top_level)
-            top_level.transient(self.main)
-            top_level.grab_set()
-            top_level.attributes('-topmost', True)
-            top_level.focus_force()
 
             util.label(top_level, "Quotation Id", 12, "bold", util.white_font_color, util.secondary_color, 0.07, 0.03)
             quotation_id, quotation_id_var, quotation_id_frame = util.frame_entry(top_level, "", 0.33, 0.03, 0, 0, 200, 30)
 
             def search_quotation_id():
-                if quotation_id_var.get():
+                if not quotation_id_var.get():
                     messagebox.showwarning("Error", "Please enter a Quotation ID.", parent=top_level)
                     return
 
@@ -1473,8 +1513,8 @@ class Transport(tk.Frame):
                         messagebox.showwarning("Application", "Please enter a valid 10-digit phone number.", parent=top_level)
                         return
 
-                    insert_query = "INSERT INTO transport (user_id, driver_id) VALUES (%s, %s)"
-                    values = (quotation_id_var.get(), driver_id_var.get())
+                    insert_query = "INSERT INTO transport (user_id, driver_id, created_on) VALUES (%s, %s, %s)"
+                    values = (quotation_id_var.get(), driver_id_var.get(), util.get_current_date())
                     self.cursor.execute(insert_query, values)
                     self.connection.commit()
                     result = messagebox.showinfo("Application", "Transport created successfully", parent=top_level)
@@ -1641,7 +1681,7 @@ class Transport(tk.Frame):
 
         if results:
             canvas = tk.Canvas(self.scrollbar_window, bg=util.primary_color, highlightthickness=0,
-                               scrollregion=(0, 0, 1700, 5000))
+                               scrollregion=(0, 0, 1130, 5000))
             canvas.pack(expand=True, fill='both')
 
             vertical_scrollbar = ttk.Scrollbar(self.scrollbar_window, orient='vertical', command=canvas.yview)
@@ -1658,7 +1698,7 @@ class Transport(tk.Frame):
             canvas.create_window(0, 0, window=frame, anchor='nw')
 
             for index, result in enumerate(results):
-                frame_canvas = util.canvas_frame(frame, 1, util.primary_color, 0, 4, 1350, 160)
+                frame_canvas = util.canvas_frame(frame, 1, util.primary_color, 0, 4, 1100, 160)
 
                 util.canvas_text(self.main, frame_canvas, 30, 40, f"{result[0]}", util.white_font_color, 12, "bold",
                                  False)
